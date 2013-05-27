@@ -12,17 +12,51 @@ import org.json.JSONObject;
 
 import java.util.Iterator;
 
-public class PuppetMaster implements IOCallback {
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.JTextField;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+
+public class PuppetMaster implements IOCallback{
   private SocketIO socket;
   public static String app_id = "app";
+  public static JFrame frame;
+  public static JTextField tf;
 
   public static void main(String[] args) {
-    String url = "http://localhost:5000/";
+    String url = "http://stark-taiga-3621.herokuapp.com:5000/";
+
+    frame = new JFrame();
+    JPanel panel = new JPanel();
+    frame.getContentPane().add(panel);
+
+    panel.setLayout(null);
+
+    JLabel l = new JLabel("App ID: ");
+    tf = new JTextField(20);
+    tf.setEditable(false);
+    l.setBounds(60, 10, 80, 30);
+    tf.setBounds(150, 10, 200, 30);
+    tf.setHorizontalAlignment(JLabel.CENTER);
+    panel.add(l);
+    panel.add(tf);
+
+    frame.setTitle("Puppet Master");
+    frame.setSize(400, 90);
+    frame.setLocationRelativeTo(null);
+    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
     try {
       new PuppetMaster(url);
     } catch (Exception e) {
       e.printStackTrace();
     }
+
+    frame.setVisible(true);
   }
 
   public PuppetMaster(String url) throws Exception {
@@ -48,6 +82,8 @@ public class PuppetMaster implements IOCallback {
     if(event.equals("set-app-id")){
       PuppetMaster.app_id = args[0].toString();
       System.out.println(" >>>>>>>> Your app id is: " + PuppetMaster.app_id + " <<<<<<<<<<<");
+      frame.setTitle("Puppet Master | AppID: " + PuppetMaster.app_id);
+      tf.setText(PuppetMaster.app_id);
     }else if(event.equals("server-to-client-app-" + PuppetMaster.app_id)){
       System.out.println("Browser has sent: ");
       try{
