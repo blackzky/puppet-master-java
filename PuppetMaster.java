@@ -1,3 +1,7 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
 import io.socket.IOAcknowledge;
 import io.socket.IOCallback;
 import io.socket.SocketIO;
@@ -6,8 +10,11 @@ import io.socket.SocketIOException;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Iterator;
+
 public class PuppetMaster implements IOCallback {
   private SocketIO socket;
+  public static String app_id = "app";
 
   public static void main(String[] args) {
     String url = "http://localhost:5000/";
@@ -21,8 +28,7 @@ public class PuppetMaster implements IOCallback {
   public PuppetMaster(String url) throws Exception {
     socket = new SocketIO();
     socket.connect(url, this);
-
-    socket.emit("from-client", new JSONObject().put("key2", "another value"));
+    socket.emit("add-client-app", app_id);
   }
 
   @Override
@@ -39,7 +45,24 @@ public class PuppetMaster implements IOCallback {
   @Override
   public void on(String event, IOAcknowledge ack, Object... args) {
     System.out.println("Server triggered event '" + event + "'");
-    System.out.println(args[0].toString());
+    if(event.equals("set-app-id")){
+      PuppetMaster.app_id = args[0].toString();
+      System.out.println(" >>>>>>>> Your app id is: " + PuppetMaster.app_id + " <<<<<<<<<<<");
+    }else if(event.equals("server-to-client-app-" + PuppetMaster.app_id)){
+      System.out.println("Browser has sent: ");
+      try{
+        JSONObject json = (JSONObject)args[0];
+        JSONObject response = (JSONObject)runCommand(json.get("command").toString());
+
+        System.out.println(args[0].toString());
+        response.put("bid", json.get("bid"));
+        socket.emit("app-to-server", response);
+      }catch(Exception e){
+        System.out.println("An exception has occured - on the event reciever: ");
+        e.printStackTrace();
+      }
+    }
+
   }
 
   private JSONObject runCommand(String command) throws Exception {
@@ -64,7 +87,7 @@ public class PuppetMaster implements IOCallback {
 
       // read any errors from the attempted command
       while ((s = stdError.readLine()) != null) {
-        if(e == 0){ System.out.println("An error has occured:\n"); }
+        if(ec == 0){ System.out.println("An error has occured:\n"); }
         System.out.println(s);
         error += (ec++ > 0 ? "\n" : "") + s;
       }
