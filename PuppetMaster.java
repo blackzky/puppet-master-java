@@ -1,9 +1,35 @@
 import java.io.*;
 import java.net.URL;
+import java.net.HttpURLConnection;
+import java.net.URLEncoder;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
 import com.google.gson.*;
+import java.io.UnsupportedEncodingException;
 
 public class PuppetMaster{
+
+  static String urlEncodeUTF8(String s) {
+    try {
+      return URLEncoder.encode(s, "UTF-8");
+    } catch (UnsupportedEncodingException e) {
+      throw new UnsupportedOperationException(e);
+    }
+  }
+  static String urlEncodeUTF8(Map<?,?> map) {
+    StringBuilder sb = new StringBuilder();
+    for (Map.Entry<?,?> entry : map.entrySet()) {
+      if (sb.length() > 0) {
+        sb.append("&");
+      }
+      sb.append(String.format("%s=%s",
+            urlEncodeUTF8(entry.getKey().toString()),
+            urlEncodeUTF8(entry.getValue().toString())
+            ));
+    }
+    return sb.toString();
+  }
 
   private static String readUrl(String urlString) throws Exception {
     BufferedReader reader = null;
@@ -23,7 +49,31 @@ public class PuppetMaster{
     }
   }
 
-  private static void runCommand(String command) throws Exception {
+  private static void sendRequest(String host, String urlParameters) throws Exception {
+    // i.e.: request = "http://example.com/index.php?param1=a&param2=b&param3=c";
+    try{
+      URL url = new URL(host);
+      HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+      connection.setDoOutput(true);
+      connection.setDoInput(true);
+      connection.setInstanceFollowRedirects(false);
+      connection.setRequestMethod("POST");
+      connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+      connection.setRequestProperty("charset", "utf-8");
+      connection.setRequestProperty("Content-Length", "" + Integer.toString(urlParameters.getBytes().length));
+      connection.setUseCaches (false);
+
+      DataOutputStream wr = new DataOutputStream(connection.getOutputStream ());
+      wr.writeBytes(urlParameters);
+      wr.flush();
+      wr.close();
+      connection.disconnect();
+    }catch(Exception e){
+      e.printStackTrace();
+    }
+  }
+
+  private static void runCommand(String host, String command) throws Exception {
     String s = null;
 
     try {
@@ -33,22 +83,33 @@ public class PuppetMaster{
       BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
 
       // read the output from the command
-      System.out.println("Here is the standard output of the command:\n");
+      String response = "";
+      int rc = 0;
+      System.out.println("Response:\n");
       while ((s = stdInput.readLine()) != null) {
         System.out.println(s);
+        response += (rc > 0 ? "\n" : "") + s;
       }
+      Map<String,Object> map = new HashMap<String,Object>();
+      map.put("response", response);
+      map.put("data", 1);
+      response = "?" + urlEncodeUTF8(map);
+      System.out.println("out: " + response);
+      sendRequest(host, response);
 
       // read any errors from the attempted command
-      System.out.println("Here is the standard error of the command (if any):\n");
+      int error_count = 0;
       while ((s = stdError.readLine()) != null) {
+        if(error_count == 0){
+          System.out.println("An error has occured:\n");
+          error_count++;
+        }
         System.out.println(s);
       }
 
-      System.exit(0);
     }catch (IOException e) {
-      System.out.println("exception happened - here's what I know: ");
+      System.out.println("An exception has occured - here's what I know: ");
       e.printStackTrace();
-      System.exit(-1);
     }
 
   }
@@ -56,15 +117,19 @@ public class PuppetMaster{
   public static void main(String args[]) {
     System.out.println("running..");
     try{
-      //PuppetMaster.runCommand(args[0]);
-      String json = readUrl("http://www.javascriptkit.com/dhtmltutors/javascriptkit.json");
+      //for linux commands that require sudo use: $echo <password> | sudo -S <command>
+      String url = "http://localhost:5000/";
+      PuppetMaster.runCommand(url, args[0]);
+      String json = readUrl(url);
 
-      Gson gson = new Gson();
-      Page page = gson.fromJson(json, Page.class);
+      //Gson gson = new Gson();
+      //Page page = gson.fromJson(json, Page.class);
 
-      System.out.println(page.title);
-      for (Item item : page.items)
-        System.out.println("    " + item.title);
+      //System.out.println(page.title);
+      //for (Item item : page.items)
+      //  System.out.println("    " + item.title);
+
+      System.exit(0);
     }catch(Exception e){
       e.printStackTrace();
       System.exit(-1);
