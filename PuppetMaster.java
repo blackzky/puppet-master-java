@@ -21,6 +21,8 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
+import javax.net.ssl.SSLContext;
+
 public class PuppetMaster implements IOCallback{
   private SocketIO socket;
   public static String app_id = "app";
@@ -28,7 +30,7 @@ public class PuppetMaster implements IOCallback{
   public static JTextField tf;
 
   public static void main(String[] args) {
-    String url = "http://stark-taiga-3621.herokuapp.com:5000/";
+    String url = "http://puppet-master.ap01.aws.af.cm:3000/";
 
     frame = new JFrame();
     JPanel panel = new JPanel();
@@ -60,6 +62,7 @@ public class PuppetMaster implements IOCallback{
   }
 
   public PuppetMaster(String url) throws Exception {
+    SocketIO.setDefaultSSLSocketFactory(SSLContext.getDefault());
     socket = new SocketIO();
     socket.connect(url, this);
     socket.emit("add-client-app", app_id);
